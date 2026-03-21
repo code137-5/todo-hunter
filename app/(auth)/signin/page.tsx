@@ -43,16 +43,16 @@ const SignIn = () => {
             flex-col
             justify-center
             items-center
-        mx-3
+        px-4 sm:px-6
         min-h-screen
         `
         .replace(/\s+/g, ' ').trim()
         }>
       <h1 className={
         `
-        mb-[40px]
+        mb-6 sm:mb-10
         text-center
-        text-[38px]
+        text-2xl sm:text-4xl
         `
         .replace(/\s+/g, ' ').trim()
         }>
