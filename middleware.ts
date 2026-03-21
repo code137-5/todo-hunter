@@ -40,7 +40,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   } else if (!accessToken && refreshToken) {
     // refreshToken만 존재하고 accessToken이 없는 경우 루트로 리다이렉트
-    console.log("🔄 refreshToken만 존재, 루트로 리다이렉트");
 
     try {
       const decoded = decodeJwt(refreshToken.value) as { id?: string; loginId?: string };
@@ -60,20 +59,11 @@ export async function middleware(request: NextRequest) {
       if (decoded?.loginId) {
         response.headers.set("X-LoginId", decoded.loginId);
       }
-      console.log("설정된 헤더:", {
-        "X-Has-AccessToken": hasAccessToken,
-        "X-Has-RefreshToken": hasRefreshToken,
-        "X-RefreshToken": refreshToken.value,
-        "X-Id": decoded?.id,
-        "X-LoginId": decoded?.loginId,
-      });
-    } catch (error) {
-      console.error("❌ refreshToken 디코드 실패:", error);
+    } catch {
       // 디코드 실패 시 기본 응답 반환
       return NextResponse.next();
     }
   } else {
-    console.log("❌ 인증되지 않은 사용자");
     response.headers.set("X-Has-AccessToken", String(hasAccessToken));
     response.headers.set("X-Has-RefreshToken", String(hasRefreshToken));
   }

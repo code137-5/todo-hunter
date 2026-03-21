@@ -21,8 +21,8 @@ export default function TitlePage(){
             const data = await res.json();
             setTitles(data);
         }
-        catch (error) {
-            console.log(error);
+        catch {
+            // 칭호 조회 실패
         }
     }, [id]);
     

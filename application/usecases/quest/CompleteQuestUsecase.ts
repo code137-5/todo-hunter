@@ -12,8 +12,6 @@ export class CompleteQuestUsecase {
 
   // 퀘스트 완료 처리 메서드
   async completeQuest(characterId: number, questId: number): Promise<void> {
-    console.log(`completeQuest 실행됨! characterId: ${characterId}, questId: ${questId}`);
-
     // 1. 해당 퀘스트를 찾아서 `characterId` 검증
     const quest = await this.PriQuestRepository.findById(questId);
     if (!quest) {
@@ -25,13 +23,11 @@ export class CompleteQuestUsecase {
     // 2. SuccessDay에 이미 완료된 퀘스트인지 확인 (중복 방지)
     const existingSuccess = await this.PriSuccessDayRepository.findByQuestId(questId);
     if (existingSuccess.length > 0) {
-        console.log(`이미 완료된 퀘스트입니다. questId: ${questId}`);
         return;
     }
 
     // 3. SuccessDay에 퀘스트 완료 기록 추가
-    const successDay = await this.PriSuccessDayRepository.create(questId);
-    console.log("SuccessDay 저장 완료:", successDay);
+    await this.PriSuccessDayRepository.create(questId);
 
     // 4. 캐릭터 상태(Status) 가져오기
     const characterStatus = await this.PriStatusRepository.findByCharacterId(characterId);
@@ -41,7 +37,6 @@ export class CompleteQuestUsecase {
 
     // 5. 퀘스트의 태그 값을 기반으로 상태 업데이트
     const { tagged } = quest;
-    console.log("업데이트할 스탯:", tagged);
 
     switch (tagged) {
         case "STR":
@@ -65,6 +60,5 @@ export class CompleteQuestUsecase {
 
     // 6. 상태 업데이트
     await this.PriStatusRepository.update(characterStatus);
-    console.log("상태 업데이트 완료:", characterStatus);
 }
 }
