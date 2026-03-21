@@ -9,9 +9,6 @@ export async function POST(req: NextRequest) {
         // Client Request json parsed
         const { email, verificationCode } = await req.json();
 
-        console.log("Received email:", email); // 디버깅용 코드
-        console.log("Received verificationCode:", verificationCode); // 디버깅용 코드
-        
         // 2차 유효성 검사
         if(!email || !verificationCode ) {
             return NextResponse.json({error: "이메일과 인증 코드를 입력해야합니다."}, {status:400});

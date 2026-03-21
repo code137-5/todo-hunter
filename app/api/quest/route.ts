@@ -8,8 +8,6 @@ import { getUserFromRequest } from '@/utils/auth';
 // POST 요청 (새 퀘스트 생성)
 export async function POST(req: NextRequest) {
   try {
-    console.log("POST /api/quest 실행"); // 실행 여부 확인
-
     // 🔹 유저 정보 가져오기
     const userId = await getUserFromRequest(req);
     if (!userId || typeof userId !== "number") {
@@ -18,7 +16,6 @@ export async function POST(req: NextRequest) {
 
     // 🔹 요청 바디 파싱
     const body = await req.json();
-    console.log("POST 요청 바디:", body); // 요청 데이터 확인
 
     const { name, tagged, isWeekly, expiredAt } = body;
 
@@ -35,8 +32,6 @@ export async function POST(req: NextRequest) {
       isWeekly,
       expiredAt: expiredAt ? new Date(expiredAt) : undefined,
     };
-
-    console.log("저장할 퀘스트 데이터:", dto); // 저장할 데이터 확인
 
     // 🔹 퀘스트 생성
     const questRepository = new PriQuestRepository(prisma);

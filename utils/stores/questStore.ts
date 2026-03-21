@@ -44,7 +44,6 @@ export const useQuestStore = create<QuestStore>((set) => ({
     try {
     const { id } = useUserStore.getState();
     if (!id) throw new Error("로그인이 필요합니다.");
-    console.log("id값:", id);
 
 
       const response = await fetch(`/api/quest?characterId=${id}`);
@@ -71,8 +70,6 @@ export const useQuestStore = create<QuestStore>((set) => ({
     try {
       const { id: characterId } = useUserStore.getState(); // 로그인한 유저 ID 가져오기
       if (!characterId) throw new Error("로그인이 필요합니다.");
-
-      console.log("completeQuest 실행됨! characterId:", characterId, "questId:", questId);
 
       // 1. 해당 퀘스트 찾기
       const quest = useQuestStore.getState().quests.find((q) => q.id === questId);
@@ -108,8 +105,6 @@ export const useQuestStore = create<QuestStore>((set) => ({
         body: JSON.stringify({ characterId, questId }), // 로그인한 유저의 ID로 설정
       });
 
-      console.log("서버 응답 상태 코드:", response.status);
-
       if (!response.ok) throw new Error("퀘스트 완료 실패");
 
       // 5. 완료 후 상태 메시지 띄우기
@@ -136,14 +131,10 @@ export const useQuestStore = create<QuestStore>((set) => ({
       const { id: characterId } = useUserStore.getState(); // 로그인한 유저 ID 가져오기
       if (!characterId) throw new Error("로그인이 필요합니다.");
   
-      console.log("deleteQuest 실행됨! characterId:", characterId, "questId:", questId);
-  
       const response = await fetch(`/api/quest/${questId}?characterId=${characterId}`, {
         method: "DELETE",
         credentials: "include", // 인증 정보 포함
       });
-  
-      console.log("서버 응답 상태 코드:", response.status);
   
       if (!response.ok) throw new Error("삭제 실패");
   
@@ -161,8 +152,7 @@ export const useQuestStore = create<QuestStore>((set) => ({
       const { id } = useUserStore.getState(); // 로그인한 유저 ID 가져오기
       if (!id) throw new Error("로그인이 필요합니다.");
 
-      const requestData = { ...quest, characterId: id }; // 로그인한 유저의 ID를 characterId에 설정
-      console.log("전송할 퀘스트 데이터:", requestData); // characterId 확인
+      const requestData = { ...quest, characterId: id };
 
       const response = await fetch("/api/quest", {
         method: "POST",

@@ -24,8 +24,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ success: false, error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    console.log("DELETE 요청 받음 - characterId:", characterId, "questId:", questId);
-
     // 퀘스트 삭제 처리
     const questRepository = new PriQuestRepository(prisma);
     const successDayRepository = new PriSuccessDayRepository(prisma);
