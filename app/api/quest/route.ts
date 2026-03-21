@@ -3,7 +3,7 @@ import { CreateQuestUseCase } from '@/application/usecases/quest/CreateQuestUsec
 import { PriQuestRepository, PriStatusRepository } from '@/infrastructure/repositories';
 import { prisma } from '@/lib/prisma';
 import { CreateQuestDTO } from '@/application/usecases/quest/dtos';
-import { getUserFromRequest } from '@/utils/auth';
+import { getUserFromCookie, getUserFromRequest } from '@/utils/auth';
 
 // POST 요청 (새 퀘스트 생성)
 export async function POST(req: NextRequest) {
@@ -50,17 +50,20 @@ export async function POST(req: NextRequest) {
 }
 
 // GET 요청
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const characterId = searchParams.get("characterId"); // 로그인한 유저 ID 가져오기
+    const { user } = await getUserFromCookie(req);
+    if (!user || !user.id) {
+      return NextResponse.json({ success: false, error: "로그인이 필요합니다." }, { status: 401 });
+    }
 
-    if (!characterId) {
-      return NextResponse.json({ success: false, error: "characterId가 필요합니다." }, { status: 400 });
+    const character = await prisma.character.findFirst({ where: { userId: Number(user.id) } });
+    if (!character) {
+      return NextResponse.json({ success: false, error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
     }
 
     const quests = await prisma.quest.findMany({
-      where: { characterId: Number(characterId) }, // 로그인한 유저의 퀘스트만 조회
+      where: { characterId: character.id },
       include: { successDays: true },
       orderBy: { updatedAt: "desc" },
     });

@@ -1,15 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { CompleteQuestUsecase } from "@/application/usecases/quest/CompleteQuestUsecase";
 import { PriQuestRepository, PriSuccessDayRepository, PriCharacterRepository, PriStatusRepository } from "@/infrastructure/repositories";
 import { prisma } from "@/lib/prisma";
+import { getUserFromCookie } from "@/utils/auth";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { characterId, questId } = body; // characterId 추가
+    const { user } = await getUserFromCookie(req);
+    if (!user || !user.id) {
+      return NextResponse.json({ success: false, error: "로그인이 필요합니다." }, { status: 401 });
+    }
 
-    if (!characterId || !questId) {
-      return NextResponse.json({ success: false, error: "characterId와 questId가 필요합니다." }, { status: 400 });
+    const character = await prisma.character.findFirst({ where: { userId: Number(user.id) } });
+    if (!character) {
+      return NextResponse.json({ success: false, error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    const body = await req.json();
+    const { questId } = body;
+    const characterId = character.id;
+
+    if (!questId) {
+      return NextResponse.json({ success: false, error: "questId가 필요합니다." }, { status: 400 });
     }
 
     // UseCase 인스턴스 생성
