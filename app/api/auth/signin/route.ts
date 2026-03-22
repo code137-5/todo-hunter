@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
         // Access Token 생성
         const accessToken = await generateAccessTokenUsecase.execute({ id: id, loginId: loginId });
 
-        // 쿠키 설정 및 응답
-        const response = NextResponse.json({ accessToken }, { status: 200 });
+        // 쿠키 설정 및 응답 (토큰은 HttpOnly 쿠키로만 전달, body에 포함하지 않음)
+        const response = NextResponse.json({ message: "로그인 성공" }, { status: 200 });
         response.cookies.set("accessToken", accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
