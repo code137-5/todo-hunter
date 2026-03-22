@@ -8,9 +8,17 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
+    const state = searchParams.get("state");
 
     if (!code) {
       return NextResponse.redirect(new URL("/signin?error=no_code", req.url));
+    }
+
+    // CSRF 검증: 쿠키에 저장된 state와 콜백의 state 비교
+    const savedState = req.cookies.get("kakao_oauth_state")?.value;
+
+    if (!state || !savedState || state !== savedState) {
+      return NextResponse.redirect(new URL("/signin?error=invalid_state", req.url));
     }
 
     // 1. 인가 코드로 카카오 액세스 토큰 발급
@@ -96,6 +104,7 @@ export async function GET(req: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",
+      sameSite: "strict",
       maxAge: parseInt((process.env.ACCESS_TOKEN_EXPIRES || "3600").replace("s", ""), 10),
     });
 
@@ -103,6 +112,7 @@ export async function GET(req: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",
+      sameSite: "strict",
       maxAge: parseInt((process.env.REFRESH_TOKEN_EXPIRES || "3600").replace("s", ""), 10),
     });
 
@@ -112,9 +122,12 @@ export async function GET(req: NextRequest) {
       maxAge: 31536000,
     });
 
+    // 사용 완료된 CSRF state 쿠키 삭제
+    response.cookies.delete("kakao_oauth_state");
+
     return response;
   } catch (error) {
-    console.error("카카오 로그인 오류:", error);
+    console.error("카카오 로그인 오류:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.redirect(new URL("/signin?error=kakao_failed", req.url));
   }
 }
