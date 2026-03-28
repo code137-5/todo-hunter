@@ -1,64 +1,62 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuestStore } from "@/utils/stores/questStore";
 import { useQuestFormStore } from "@/utils/stores/useQuestFormStore";
 import { STATUS } from "@/constants/status";
-import DateSelector from "@/components/common/DateSelector";
-import { Button, Input } from "@/components/common";
+import { EXP_PER_QUEST } from "@/constants/game";
+import { Button, Input, Calendar } from "@/components/common";
+import { Tag } from "@/components/common/Tag";
+import { format } from "date-fns";
 
+const QUEST_NAME_MAX = 40;
 const DAYS = ["월", "화", "수", "목", "금", "토"] as const;
 const STATUS_KEYS = Object.keys(STATUS) as (keyof typeof STATUS)[];
+
+const DIFFICULTY_CONFIG = {
+  easy:   { label: "쉬움",  stars: 1, expMult: 1 },
+  normal: { label: "보통",  stars: 2, expMult: 2 },
+  hard:   { label: "어려움", stars: 3, expMult: 3 },
+} as const;
 
 const AddDailyQuest = () => {
   const router = useRouter();
   const { addQuest } = useQuestStore();
   const {
-    questName,
-    tagged,
-    selectedDate,
-    isWeekly,
-    setQuestName,
-    setTagged,
-    setSelectedDate,
-    setIsWeekly,
+    questName, tagged, selectedDate, isWeekly,
+    selectedDays, difficulty,
+    setQuestName, setTagged, setSelectedDate,
+    setIsWeekly, setSelectedDays, setDifficulty,
     resetForm,
   } = useQuestFormStore();
 
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const toggleDay = (day: string) => {
-    setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
+    const next = selectedDays.includes(day)
+      ? selectedDays.filter((d) => d !== day)
+      : [...selectedDays, day];
+    setSelectedDays(next);
     if (!isWeekly) setIsWeekly(true);
   };
 
+  const goBack = () => { resetForm(); router.push("/play/quest"); };
+
   const onSaveQuestHandler = async () => {
-    if (!questName.trim()) {
-      alert("퀘스트 이름을 입력하세요!");
-      return;
-    }
-
-    const user = { characterId: 1 }; // 추후 실제 로그인된 유저 정보로 대체
-
-    if (!user?.characterId) {
-      alert("로그인이 필요합니다.");
-      return;
-    }
+    if (!questName.trim()) return;
 
     try {
       await addQuest({
-        characterId: user.characterId, 
         name: questName,
         tagged,
         isWeekly,
+        difficulty,
         expiredAt: selectedDate || null,
         completed: false,
+        characterId: 0
       });
-
-      resetForm(); // 폼 초기화
+      resetForm();
       router.push("/play/quest");
     } catch (err) {
       console.error("퀘스트 추가 중 오류 발생", err);
@@ -66,93 +64,198 @@ const AddDailyQuest = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#2a2a2a] text-white">
-      {/* 헤더 */}
-      <div className="flex items-center px-4 pt-4 pb-3 shrink-0">
-        <button onClick={() => { resetForm(); router.push("/play/quest"); }} className="text-white text-2xl cursor-pointer">←</button>
-        <h1 className="flex-1 text-center text-lg font-galmuri11-bold mr-6">퀘스트 생성</h1>
+    <div className="flex flex-col bg-[#2a2a2a] text-white h-screen overflow-hidden">
+      {/* ── 헤더 ── */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 shrink-0">
+        <button onClick={goBack} className="text-white text-2xl cursor-pointer">
+          &larr;
+        </button>
+        <h1 className="text-lg font-bold">퀘스트 생성</h1>
+        <Button
+          state="primary"
+          size="S"
+          onClick={onSaveQuestHandler}
+          disabled={!questName.trim()}
+          className={!questName.trim() ? "opacity-40" : ""}
+        >
+          저장
+        </Button>
       </div>
 
-      {/* 폼 영역 */}
-      <div className="overflow-y-auto px-5 py-4">
-        {/* Q. 무슨 일을 하나요? */}
-        <h2 className="text-center font-bold text-base mb-4">Q. 무슨 일을 하나요?</h2>
+      {/* ── 폼 스크롤 영역 ── */}
+      <div className="flex-1 overflow-y-auto px-5 pb-28 space-y-7 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
 
-        {/* 카테고리 - 화살표 전환 */}
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <button
-            className="text-white text-2xl cursor-pointer px-2"
-            onClick={() => {
-              const idx = STATUS_KEYS.indexOf(tagged as keyof typeof STATUS);
-              const prev = idx <= 0 ? STATUS_KEYS.length - 1 : idx - 1;
-              setTagged(STATUS_KEYS[prev]);
-            }}
-          >
-            ◀
-          </button>
-          <span className={`is-rounded px-6 py-2 text-base font-bold text-white ${
-            { STR: "bg-red-500", INT: "bg-blue-500", EMO: "bg-purple-500", FIN: "bg-green-500", LIV: "bg-yellow-500" }[tagged] || "bg-gray-600"
-          }`}>
-            {STATUS[tagged as keyof typeof STATUS] || "선택"}
-          </span>
-          <button
-            className="text-white text-2xl cursor-pointer px-2"
-            onClick={() => {
-              const idx = STATUS_KEYS.indexOf(tagged as keyof typeof STATUS);
-              const next = idx >= STATUS_KEYS.length - 1 ? 0 : idx + 1;
-              setTagged(STATUS_KEYS[next]);
-            }}
-          >
-            ▶
-          </button>
+        {/* 1. 할일 입력 */}
+        <div>
+          <Input
+            type="text"
+            placeholder="할일을 입력하세요"
+            value={questName}
+            maxLength={QUEST_NAME_MAX}
+            onChange={(e) => setQuestName(e.target.value)}
+            className="is-rounded-form w-full shadow-none text-black"
+          />
+          <p className="text-right text-xs text-gray-500 mt-1">
+            {questName.length} / {QUEST_NAME_MAX}
+          </p>
         </div>
 
-        <Input
-          type="text"
-          placeholder="자세한 할일을 입력하세요"
-          value={questName}
-          onChange={(e) => setQuestName(e.target.value)}
-          className="is-rounded-form w-full shadow-none text-black"
-        />
-
-        {/* Q. 언제부터, 얼마나 하나요? */}
-        <h2 className="text-center font-bold text-base mt-8 mb-4">Q. 언제부터, 얼마나 하나요?</h2>
-
-        <div className="flex items-center gap-2 mb-5">
-          <span className="text-sm font-bold shrink-0">시작일</span>
-          <div className="flex-1">
-            <DateSelector onUpdate={setSelectedDate} />
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <span className="text-sm font-bold block mb-3">반복 요일</span>
-          <div className="grid grid-cols-6 gap-3 overflow-hidden px-1">
-            {DAYS.map((day) => (
-              <button
-                key={day}
-                className={`is-rounded py-2 text-sm font-bold cursor-pointer transition-colors flex items-center justify-center ${
-                  selectedDays.includes(day)
-                    ? "bg-[#C84B3A] text-white"
-                    : "bg-gray-700 text-gray-300"
-                }`}
-                onClick={() => toggleDay(day)}
-              >
-                {day}
+        {/* 2. 스탯 태그 */}
+        <section>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+            <span className="text-yellow-400"></span> Q. 어떤 스탯을 성장시키나요?
+          </h3>
+          <div className="grid grid-cols-5 gap-2">
+            {STATUS_KEYS.map((key) => (
+              <button key={key} onClick={() => setTagged(key)} className="cursor-pointer">
+                <Tag
+                  variant={key}
+                  className={`w-full justify-center py-2 text-xs transition-all ${
+                    tagged === key
+                      ? "ring-2 ring-white scale-105"
+                      : "opacity-60"
+                  }`}
+                >
+                  <span className="flex flex-col items-center leading-tight">
+                    <span className="font-bold">{key}</span>
+                    <span className="text-[10px]">{STATUS[key]}</span>
+                  </span>
+                </Tag>
               </button>
             ))}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* 하단 버튼 */}
-      <div className="flex gap-3 px-5 py-4 shrink-0">
-        <Button className="flex-1" state="outline" size="M" onClick={() => { resetForm(); router.push("/play/quest"); }}>
-          취소
-        </Button>
-        <Button className="flex-1" state="primary" size="M" onClick={onSaveQuestHandler}>
-          할일 추가
-        </Button>
+        {/* 3. 퀘스트 유형 */}
+        <section>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+            <span className="text-blue-400"></span> Q. 일주일 몇번 반복하나요?
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              className={`is-rounded py-2.5 text-sm font-bold cursor-pointer transition-all text-center ${
+                !isWeekly
+                  ? "bg-[#C84B3A] text-white ring-2 ring-white"
+                  : "bg-gray-700 text-gray-400"
+              }`}
+              onClick={() => { setIsWeekly(false); setSelectedDays([]); }}
+            >
+              일간 퀘스트
+            </button>
+            <button
+              className={`is-rounded py-2.5 text-sm font-bold cursor-pointer transition-all text-center ${
+                isWeekly
+                  ? "bg-[#C84B3A] text-white ring-2 ring-white"
+                  : "bg-gray-700 text-gray-400"
+              }`}
+              onClick={() => setIsWeekly(true)}
+            >
+              주간 퀘스트
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            {isWeekly ? "특정 요일에 반복되는 퀘스트" : "특정 요일에 반복되는 할일"}
+          </p>
+        </section>
+
+        {/* 4. 반복 요일 (주간 선택 시 표시) */}
+        {isWeekly && (
+          <section>
+            <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+              <span className="text-green-400"></span> 반복 요일
+            </h3>
+            <div className="grid grid-cols-6 gap-2">
+              {DAYS.map((day) => (
+                <button
+                  key={day}
+                  className={`is-rounded py-2.5 text-sm font-bold cursor-pointer transition-all flex items-center justify-center ${
+                    selectedDays.includes(day)
+                      ? "bg-[#C84B3A] text-white ring-2 ring-white"
+                      : "bg-gray-700 text-gray-400"
+                  }`}
+                  onClick={() => toggleDay(day)}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 5. 난이도 */}
+        <section>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+            <span className="text-yellow-300"></span> Q. 지금 내 체력으로는 어느정도로?
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(DIFFICULTY_CONFIG) as Array<keyof typeof DIFFICULTY_CONFIG>).map((key) => {
+              const cfg = DIFFICULTY_CONFIG[key];
+              const isActive = difficulty === key;
+              return (
+                <button
+                  key={key}
+                  className={`is-rounded py-3 cursor-pointer transition-all text-center ${
+                    isActive
+                      ? "bg-[#C84B3A] text-white ring-2 ring-white"
+                      : "bg-gray-700 text-gray-400"
+                  }`}
+                  onClick={() => setDifficulty(key)}
+                >
+                  <div className="text-sm">
+                    {"★".repeat(cfg.stars)}{"☆".repeat(3 - cfg.stars)}
+                  </div>
+                  <div className="text-xs font-bold mt-0.5">{cfg.label}</div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-right text-[11px] text-gray-500 mt-1.5">
+            획득 EXP: +{EXP_PER_QUEST * DIFFICULTY_CONFIG[difficulty].expMult}
+          </p>
+        </section>
+
+        {/* 6. 시작일 */}
+        <section>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+            <span className="text-purple-400"></span> Q. 언제부터 하나요?
+          </h3>
+          <button
+            type="button"
+            onClick={() => setCalendarOpen(true)}
+            className="is-rounded-form w-full bg-gray-800 text-white px-4 py-3 text-sm text-left cursor-pointer flex items-center justify-between"
+          >
+            <span>{selectedDate || format(new Date(), "yyyy-MM-dd")}</span>
+            <span className="text-gray-400"></span>
+          </button>
+        </section>
+
+      {/* 캘린더 모달 */}
+      {calendarOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setCalendarOpen(false)}
+        >
+          {/* 배경 딤 */}
+          <div className="absolute inset-0 bg-black/60" />
+          {/* 캘린더 */}
+          <div
+            className="relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Calendar
+              mode="single"
+              disabled={{ before: new Date() }}
+              selected={selectedDate ? new Date(selectedDate + "T00:00:00") : new Date()}
+              onSelect={(date) => {
+                if (date) {
+                  setSelectedDate(format(date, "yyyy-MM-dd"));
+                  setCalendarOpen(false);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
