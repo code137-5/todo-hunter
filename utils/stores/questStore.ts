@@ -105,9 +105,15 @@ export const useQuestStore = create<QuestStore>((set) => ({
         }, 1000);
       }, 600);
 
-      // 5. 애니메이션 완료(공격 끝) 후 toast 표시
+      // 5. API 응답 확인
       const response = await responsePromise;
-      if (!response.ok) throw new Error("퀘스트 완료 실패");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.errorType === "WILLPOWER_DEPLETED") {
+          throw new Error("WILLPOWER_DEPLETED");
+        }
+        throw new Error("퀘스트 완료 실패");
+      }
 
       // 공격 완료 시점(1600ms) 이후에 toast 표시
       setTimeout(() => {
@@ -127,6 +133,11 @@ export const useQuestStore = create<QuestStore>((set) => ({
           q.id === questId ? { ...q, completed: false } : q
         ),
       }));
+
+      // 의지력 부족 에러 toast
+      if (err instanceof Error && err.message === "WILLPOWER_DEPLETED") {
+        toast.error("의지력이 부족하여 퀘스트를 완료할 수 없습니다!");
+      }
     }
   },
 
