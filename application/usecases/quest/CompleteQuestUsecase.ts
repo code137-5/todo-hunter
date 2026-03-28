@@ -1,5 +1,6 @@
 import { CompleteQuestError } from "@/application/usecases/quest/errors/CompleteQuestError";
 import { ICharacterRepository, IQuestRepository, IStatusRepository, ISuccessDayRepository } from "@/domain/repositories";
+import { EXP_PER_QUEST, WILLPOWER_COST, EXP_TO_LEVEL_UP, MAX_WILLPOWER } from "@/constants/game";
 
 export class CompleteQuestUsecase {
   constructor(
@@ -18,9 +19,19 @@ export class CompleteQuestUsecase {
         throw new CompleteQuestError("QUEST_NOT_FOUND", "퀘스트를 찾을 수 없습니다.");
     }
     if (quest.characterId !== characterId) {
+        throw new CompleteQuestError("QUEST_NOT_FOUND", "퀘스트를 찾을 수 없습니다.");
     }
 
-    // 2. SuccessDay에 이미 완료된 퀘스트인지 확인 (중복 방지)
+    // 2. 캐릭터 의지력 확인
+    const character = await this.PriCharacterRepository.findById(characterId);
+    if (!character) {
+        throw new CompleteQuestError("CHARACTER_NOT_FOUND", "캐릭터를 찾을 수 없습니다.");
+    }
+    if (character.willpower < WILLPOWER_COST) {
+        throw new CompleteQuestError("WILLPOWER_DEPLETED", "의지력이 부족하여 퀘스트를 완료할 수 없습니다.");
+    }
+
+    // 3. SuccessDay에 이미 완료된 퀘스트인지 확인 (중복 방지)
     const existingSuccess = await this.PriSuccessDayRepository.findByQuestId(questId);
     if (existingSuccess.length > 0) {
         return;
@@ -58,7 +69,27 @@ export class CompleteQuestUsecase {
             throw new CompleteQuestError("INVALID_TAG", "유효하지 않은 태그입니다.");
     }
 
-    // 6. 상태 업데이트
+    // 6. 스탯 상태 업데이트
     await this.PriStatusRepository.update(characterStatus);
+
+    // 7. 경험치 증가 + 의지력 소모 + 레벨업 판정
+    let newExp = character.exp + EXP_PER_QUEST;
+    let newWillpower = Math.max(character.willpower - WILLPOWER_COST, 0);
+    let newLevel = character.level;
+    let newMaxWillpower = character.maxWillpower;
+
+    if (newExp >= EXP_TO_LEVEL_UP(character.level)) {
+        newLevel = character.level + 1;
+        newExp = 0;
+        newMaxWillpower = MAX_WILLPOWER(newLevel);
+        newWillpower = newMaxWillpower; // 레벨업 시 의지력 완충
+    }
+
+    await this.PriCharacterRepository.updateCharacterStats(characterId, {
+        level: newLevel,
+        exp: newExp,
+        willpower: newWillpower,
+        maxWillpower: newMaxWillpower,
+    });
 }
 }
