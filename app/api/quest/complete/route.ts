@@ -45,7 +45,19 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("퀘스트 완료 중 오류 발생:", error); // 에러 로그 수정
+    console.error("퀘스트 완료 중 오류 발생:", error);
+
+    // 의지력 부족 에러는 400으로 반환
+    if (error instanceof Error && error.name === "CompleteQuestError") {
+      const questError = error as unknown as { type: string; message: string };
+      if (questError.type === "WILLPOWER_DEPLETED") {
+        return NextResponse.json(
+          { success: false, error: questError.message, errorType: "WILLPOWER_DEPLETED" },
+          { status: 400 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { success: false, error: "퀘스트 완료 중 오류 발생" },
       { status: 500 }
