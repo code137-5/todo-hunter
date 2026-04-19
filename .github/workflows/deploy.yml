@@ -34,22 +34,12 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      # Test Job Start
-      # - name: Check TypeScript types
-      #   run: npm run typecheck
-
       - name: Check code style
         run: npm run lint
 
       - name: Check for npm audit vulnerabilities
         run: npm run audit
         continue-on-error: true
-      # Test Job End
-
-  # build:
-  #   needs: test
-  #   runs-on: ubuntu-latest
-  #   steps:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -64,25 +54,61 @@ jobs:
           node-version: 'lts/*'
           cache: 'npm'
 
-      - name: Set build environment variables
+      # ⚠️ 중요: .env 는 build 전에 완전히 채워져 있어야 함
+      # (NEXT_PUBLIC_* 환경변수는 빌드 시점에 정적으로 번들에 박히기 때문)
+      - name: Write .env (full production secrets)
         run: |
-          echo "REDIS_URL=${{ secrets.REDIS_URL }}" > .env
-          echo "NODE_ENV=production" >> .env
+          cat > .env <<EOF
+          # DB / Cache
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+
+          # JWT
+          ACCESS_TOKEN_SECRET=${{ secrets.ACCESS_TOKEN_SECRET }}
+          REFRESH_TOKEN_SECRET=${{ secrets.REFRESH_TOKEN_SECRET }}
+          ACCESS_TOKEN_EXPIRES=${{ secrets.ACCESS_TOKEN_EXPIRES }}
+          REFRESH_TOKEN_EXPIRES=${{ secrets.REFRESH_TOKEN_EXPIRES }}
+
+          # SMTP (이메일 인증)
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER_EMAIL=${{ secrets.SMTP_USER_EMAIL }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+
+          # 카카오 OAuth
+          KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+          KAKAO_REDIRECT_URI=${{ secrets.KAKAO_REDIRECT_URI }}
+
+          # Anthropic (퀘스트 분할 AI, 사용 중이면)
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Sentry (에러 모니터링)
+          NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          SENTRY_ORG=${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
+
+          # 앱 기본 URL (서버사이드에서 쓸 경우)
+          DEFAULT_API_URL=${{ secrets.DEFAULT_API_URL }}
+
+          # 운영
+          NODE_ENV=production
+          TZ=Asia/Seoul
+          EOF
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate prisma client
+      - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Build todo-hunter project
+      - name: Build Next.js
         run: npm run build
 
-      - name: Create deployment directory
-        run: |
-          mkdir -p /home/todohunter/todohunter-repo/todohunter-app
+      - name: Ensure deployment directory
+        run: mkdir -p /home/todohunter/todohunter-repo/todohunter-app
 
-      - name: Sync to deployment directory
+      - name: Rsync to deployment directory
         run: |
           rsync -av --delete \
             --exclude '.git' \
@@ -90,32 +116,42 @@ jobs:
             --exclude 'node_modules' \
             ./ /home/todohunter/todohunter-repo/todohunter-app/
 
-      - name: Set environment variables
+      - name: Install production dependencies on target
+        working-directory: /home/todohunter/todohunter-repo/todohunter-app
         run: |
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "REDIS_URL=${{ secrets.REDIS_URL }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "ACCESS_TOKEN_SECRET=${{ secrets.ACCESS_TOKEN_SECRET }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "REFRESH_TOKEN_SECRET=${{ secrets.REFRESH_TOKEN_SECRET }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "ACCESS_TOKEN_EXPIRES=${{ secrets.ACCESS_TOKEN_EXPIRES }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "REFRESH_TOKEN_EXPIRES=${{ secrets.REFRESH_TOKEN_EXPIRES }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "SMTP_USER_EMAIL=${{ secrets.SMTP_USER_EMAIL }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> /home/todohunter/todohunter-repo/todohunter-app/.env
-          echo "NODE_ENV=production" >> /home/todohunter/todohunter-repo/todohunter-app/.env
+          npm ci --omit=dev
+          npx prisma generate
 
-      - name: Install production dependencies
+      - name: Run Prisma migrations
+        working-directory: /home/todohunter/todohunter-repo/todohunter-app
+        run: npx prisma migrate deploy
+
+      - name: Ensure ecosystem.config.js exists at target
         run: |
-          cd /home/todohunter/todohunter-repo/todohunter-app
-          npm ci --production
+          cp /home/todohunter/todohunter-repo/todohunter-app/deploy/ecosystem.config.js /home/todohunter/ecosystem.config.js
 
-      - name: Check and restart PM2 process
+      - name: PM2 reload or start
         run: |
           if pm2 list | grep -q "todohunter-app"; then
             echo "Reloading existing PM2 process"
-            pm2 reload /home/todohunter/ecosystem.config.js --only todohunter-app
+            pm2 reload /home/todohunter/ecosystem.config.js --only todohunter-app --update-env
           else
             echo "Starting new PM2 process"
             pm2 start /home/todohunter/ecosystem.config.js --only todohunter-app
           fi
           pm2 save
+
+      - name: Health check
+        run: |
+          sleep 5
+          for i in 1 2 3 4 5; do
+            if curl -fsS http://localhost:3050/ > /dev/null; then
+              echo "✅ App is responding on :3050"
+              exit 0
+            fi
+            echo "⏳ waiting for app ($i/5)..."
+            sleep 3
+          done
+          echo "❌ App did not respond after 20s"
+          pm2 logs todohunter-app --lines 30 --nostream
+          exit 1
