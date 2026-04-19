@@ -5,20 +5,23 @@ import { GenerateRefreshTokenUsecase } from "@/application/usecases/auth/Generat
 import { RdAuthenticationRepository } from "@/infrastructure/repositories/RdAuthenticationRepository";
 
 export async function GET(req: NextRequest) {
+  // 프록시 뒤에서는 req.url이 내부 URL(localhost)로 잡히므로 환경변수 기반 절대 URL 사용
+  const baseUrl = process.env.DEFAULT_API_URL || new URL(req.url).origin;
+
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
 
     if (!code) {
-      return NextResponse.redirect(new URL("/signin?error=no_code", req.url));
+      return NextResponse.redirect(new URL("/signin?error=no_code", baseUrl));
     }
 
     // CSRF 검증: 쿠키에 저장된 state와 콜백의 state 비교
     const savedState = req.cookies.get("kakao_oauth_state")?.value;
 
     if (!state || !savedState || state !== savedState) {
-      return NextResponse.redirect(new URL("/signin?error=invalid_state", req.url));
+      return NextResponse.redirect(new URL("/signin?error=invalid_state", baseUrl));
     }
 
     // 1. 인가 코드로 카카오 액세스 토큰 발급
@@ -37,7 +40,7 @@ export async function GET(req: NextRequest) {
     const tokenData = await tokenResponse.json();
 
     if (!tokenData.access_token) {
-      return NextResponse.redirect(new URL("/signin?error=token_failed", req.url));
+      return NextResponse.redirect(new URL("/signin?error=token_failed", baseUrl));
     }
 
     // 2. 카카오 사용자 정보 조회
@@ -62,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     if (!user) {
       // 신규 사용자: 닉네임 입력을 위해 signup 페이지로 리다이렉트
-      const response = NextResponse.redirect(new URL("/signup?provider=kakao", req.url));
+      const response = NextResponse.redirect(new URL("/signup?provider=kakao", baseUrl));
 
       // 카카오 데이터를 HttpOnly 쿠키에 임시 저장 (5분 만료)
       response.cookies.set("kakao_pending", JSON.stringify({
@@ -97,7 +100,7 @@ export async function GET(req: NextRequest) {
     });
 
     // 5. 쿠키 설정 후 캐릭터 페이지로 리다이렉트
-    const response = NextResponse.redirect(new URL("/play/character", req.url));
+    const response = NextResponse.redirect(new URL("/play/character", baseUrl));
 
     response.cookies.set("accessToken", accessToken, {
       httpOnly: true,
@@ -126,6 +129,6 @@ export async function GET(req: NextRequest) {
     return response;
   } catch (error) {
     console.error("카카오 로그인 오류:", error instanceof Error ? error.message : "unknown error");
-    return NextResponse.redirect(new URL("/signin?error=kakao_failed", req.url));
+    return NextResponse.redirect(new URL("/signin?error=kakao_failed", baseUrl));
   }
 }
