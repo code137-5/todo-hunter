@@ -42,10 +42,9 @@ export default function TitleDetailModal({
           className="font-galmuri9 fixed left-1/2 top-1/2 z-50 w-[calc(100%-36px)] -translate-x-1/2 -translate-y-1/2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
           style={{
             maxWidth: 320,
-            background: "url('/images/backgrounds/titlebook-background_02.png') center/cover, #f3e3a5",
-            border: "3px solid #3a2a18",
-            boxShadow: "0 6px 0 #3a2a18, inset 0 0 0 1.5px #b8862c",
-            padding: "18px 18px 16px",
+            aspectRatio: "1151 / 1437",
+            background: "url('/images/backgrounds/titlebook-background_02.png') center/100% 100% no-repeat",
+            padding: "32px 36px 28px",
           }}
         >
           <DialogTitle className="sr-only">{unlocked ? (title?.name ?? "") : "미해금 칭호"}</DialogTitle>
@@ -53,7 +52,7 @@ export default function TitleDetailModal({
           <DialogPrimitive.Close
             aria-label="닫기"
             className="font-galmuri11-bold absolute cursor-pointer"
-            style={{ top: 6, right: 10, fontSize: 14, color: "#3a2a18", background: "none", border: 0 }}
+            style={{ top: 36, right: 42, fontSize: 14, color: "#3a2a18", background: "none", border: 0 }}
           >
             ✕
           </DialogPrimitive.Close>
