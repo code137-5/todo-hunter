@@ -13,6 +13,8 @@ interface Quest {
   difficulty?: string;
   completed: boolean;
   characterId: number;
+  days?: string[]; // 주간 퀘스트의 반복 요일 (예: ["월", "수", "금"])
+  streak?: number; // 주간 퀘스트의 연속 성공 주 수 (days 모두 만족한 주 카운트)
 }
 
 interface QuestStore {

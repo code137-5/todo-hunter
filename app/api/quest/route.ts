@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { CreateQuestDTO } from '@/application/usecases/quest/dtos';
 import { getUserFromCookie } from '@/utils/auth';
 import { getTodayStart, getThisWeekStart } from '@/utils/date';
+import { calculateWeeklyStreak } from '@/utils/questStreak';
 
 // POST 요청 (새 퀘스트 생성)
 export async function POST(req: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     // 🔹 요청 바디 파싱
     const body = await req.json();
 
-    const { name, tagged, isWeekly, difficulty, expiredAt } = body;
+    const { name, tagged, isWeekly, difficulty, expiredAt, days } = body;
 
     // 🔹 필수 값 검증
     if (!name || !tagged) {
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
       isWeekly,
       difficulty: difficulty || "normal",
       expiredAt: expiredAt ? new Date(expiredAt) : undefined,
+      days: Array.isArray(days) ? days : undefined,
     };
 
     // 🔹 퀘스트 생성
@@ -78,6 +80,8 @@ export async function GET(req: NextRequest) {
     // 만료된 퀘스트는 UI에서 제외 (일간 퀘스트는 완료 시 expiredAt = 다음 날 0시 로 세팅됨).
     // expiredAt 이 null 이면 만료 없음으로 간주.
     const now = new Date();
+    // streak 계산을 위해 SuccessDay 전체를 가져옴.
+    // 데이터량 부담 우려 시 quest 별 limit 적용 또는 별도 endpoint 분리 고려.
     const quests = await prisma.quest.findMany({
       where: {
         characterId: character.id,
@@ -86,21 +90,25 @@ export async function GET(req: NextRequest) {
           { expiredAt: { gt: now } },
         ],
       },
-      include: {
-        successDays: {
-          // 가장 넓은 범위(weekStart) 로 한 번에 가져온 뒤 isWeekly 별로 필터
-          where: { createdAt: { gte: weekStart } },
-        },
-      },
+      include: { successDays: true },
       orderBy: { updatedAt: "desc" },
     });
 
     const formattedQuests = quests.map((quest) => {
       const since = quest.isWeekly ? weekStart : todayStart;
       const completed = quest.successDays.some((s) => s.createdAt >= since);
+      // 주간 퀘스트면서 days 가 지정된 경우에만 streak 계산
+      const streak =
+        quest.isWeekly && quest.days.length > 0
+          ? calculateWeeklyStreak(
+              quest.days,
+              quest.successDays.map((s) => s.createdAt),
+              now
+            )
+          : 0;
       const { successDays: _omit, ...rest } = quest;
       void _omit;
-      return { ...rest, completed };
+      return { ...rest, completed, streak };
     });
 
     return NextResponse.json({ success: true, quests: formattedQuests }, { status: 200 });

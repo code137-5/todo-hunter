@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const body = await req.json();
-    const { name, tagged, isWeekly, difficulty, expiredAt } = body;
+    const { name, tagged, isWeekly, difficulty, expiredAt, days } = body;
 
     const updated = await prisma.quest.update({
       where: { id: questId },
@@ -41,6 +41,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(isWeekly !== undefined && { isWeekly }),
         ...(difficulty !== undefined && { difficulty }),
         ...(expiredAt !== undefined && { expiredAt: expiredAt ? new Date(expiredAt) : null }),
+        ...(Array.isArray(days) && { days }),
         updatedAt: new Date(),
       },
     });
