@@ -55,7 +55,7 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
     if (value && !prev) {
       const newKillCount = get().killCount + 1;
       set({ isDefeated: true, killCount: newKillCount });
-      toast.success(`몬스터를 처치했습니다! 🎉`);
+      toast.success(`몬스터를 처치했습니다!`);
 
       // CLEAR 연출 후 자동으로 다음 몬스터 젠 (2초 뒤)
       setTimeout(() => {
@@ -74,7 +74,7 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
       monsterHp: next.hp,
       monsterMaxHp: next.hp,
     });
-    toast(`${next.name}이(가) 나타났다! 🐺`);
+    toast(`${next.name}이(가) 나타났다!`);
   },
 
   fetchQuests: async () => {
