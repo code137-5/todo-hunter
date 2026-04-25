@@ -1,7 +1,7 @@
 import { CompleteQuestError } from "@/application/usecases/quest/errors/CompleteQuestError";
 import { ICharacterRepository, IQuestRepository, IStatusRepository, ISuccessDayRepository } from "@/domain/repositories";
 import { EXP_PER_QUEST, WILLPOWER_COST, EXP_TO_LEVEL_UP, MAX_WILLPOWER, DIFFICULTY_MULTIPLIER } from "@/constants/game";
-import { getTodayStart, getThisWeekStart } from "@/utils/date";
+import { getTodayStart, getThisWeekStart, getNextDayStart } from "@/utils/date";
 
 export class CompleteQuestUsecase {
   constructor(
@@ -42,6 +42,12 @@ export class CompleteQuestUsecase {
 
     // 3. SuccessDay에 퀘스트 완료 기록 추가
     await this.PriSuccessDayRepository.create(questId);
+
+    // 3-1. 일간 퀘스트(일회성 할일)는 완료 즉시 expiredAt을 다음 날 0시로 세팅하여
+    //      자정이 지나면 UI에서 자연스럽게 사라지게 한다. 주간 퀘스트(반복 습관)는 건너뜀.
+    if (!quest.isWeekly && !quest.expiredAt) {
+        await this.PriQuestRepository.update(questId, { expiredAt: getNextDayStart() });
+    }
 
     // 4. 캐릭터 상태(Status) 가져오기
     const characterStatus = await this.PriStatusRepository.findByCharacterId(characterId);

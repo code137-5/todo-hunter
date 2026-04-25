@@ -201,13 +201,17 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
         credentials: "include",
       });
 
-      if (!response.ok) throw new Error("삭제 실패");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "삭제 실패");
+      }
 
       set((state) => ({
         quests: state.quests.filter((q) => q.id !== questId),
       }));
     } catch (err) {
       console.error("deleteQuest 오류:", err);
+      toast.error(err instanceof Error ? err.message : "퀘스트 삭제 중 오류 발생");
     }
   },
 

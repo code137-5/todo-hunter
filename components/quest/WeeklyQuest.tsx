@@ -44,7 +44,7 @@ const WeeklyQuest = ({ hideHeader, hideAddButton }: { hideHeader?: boolean; hide
             .map(({ id, name, tagged, completed, expiredAt }) => (
               <div
                 key={id}
-                className={`flex items-center gap-3 is-rounded p-3 ${completed ? "opacity-50 bg-gray-100" : "bg-white"}`}
+                className={`flex items-center gap-3 is-rounded p-2.5 ${completed ? "opacity-50 bg-gray-100" : "bg-white"}`}
               >
                 <button
                   className="shrink-0 cursor-pointer"
@@ -53,8 +53,8 @@ const WeeklyQuest = ({ hideHeader, hideAddButton }: { hideHeader?: boolean; hide
                 >
                   <Image
                     src={completed ? "/icons/check_on.svg" : "/icons/check_off.svg"}
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     alt={completed ? "완료" : "미완료"}
                   />
                 </button>
@@ -70,12 +70,12 @@ const WeeklyQuest = ({ hideHeader, hideAddButton }: { hideHeader?: boolean; hide
                     className="shrink-0 cursor-pointer"
                     onClick={() => router.push(`/play/quest/edit-quest/${id}`)}
                   >
-                    <Image src="/icons/pencil.svg" width={20} height={20} alt="수정" />
+                    <Image src="/icons/pencil.png" width={20} height={20} alt="수정" />
                   </button>
                 )}
                 {!completed && (
                   <button className="shrink-0 cursor-pointer" onClick={() => deleteQuest(id)}>
-                    <Image src="/icons/circle-x.svg" width={24} height={24} alt="삭제" />
+                    <Image src="/icons/circle-x.svg" width={20} height={20} alt="삭제" />
                   </button>
                 )}
               </div>

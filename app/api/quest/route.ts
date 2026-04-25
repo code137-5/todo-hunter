@@ -75,8 +75,17 @@ export async function GET(req: NextRequest) {
     const todayStart = getTodayStart();
     const weekStart = getThisWeekStart();
 
+    // 만료된 퀘스트는 UI에서 제외 (일간 퀘스트는 완료 시 expiredAt = 다음 날 0시 로 세팅됨).
+    // expiredAt 이 null 이면 만료 없음으로 간주.
+    const now = new Date();
     const quests = await prisma.quest.findMany({
-      where: { characterId: character.id },
+      where: {
+        characterId: character.id,
+        OR: [
+          { expiredAt: null },
+          { expiredAt: { gt: now } },
+        ],
+      },
       include: {
         successDays: {
           // 가장 넓은 범위(weekStart) 로 한 번에 가져온 뒤 isWeekly 별로 필터

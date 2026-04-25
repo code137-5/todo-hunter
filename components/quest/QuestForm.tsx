@@ -99,7 +99,8 @@ const QuestForm = ({ title, submitLabel, onSubmit }: QuestFormProps) => {
               <button key={key} onClick={() => setTagged(key)} className="cursor-pointer">
                 <Tag
                   variant={key}
-                  className={`w-full justify-center py-2 text-xs transition-all ${
+                  size="lg"
+                  className={`w-full transition-all ${
                     tagged === key
                       ? "ring-2 ring-white scale-105"
                       : "opacity-60"

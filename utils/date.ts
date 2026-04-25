@@ -8,6 +8,15 @@ export function getTodayStart(now: Date = new Date()): Date {
   return start;
 }
 
+// 다음 날 0시. 일간 퀘스트의 expiredAt 으로 사용해
+// 자정 지나면 자동으로 만료된 것으로 판정되게 한다.
+export function getNextDayStart(now: Date = new Date()): Date {
+  const next = new Date(now);
+  next.setHours(0, 0, 0, 0);
+  next.setDate(next.getDate() + 1);
+  return next;
+}
+
 // 이번 주 월요일 0시. getDay() 는 0(일) ~ 6(토). 월요일 기준 주 시작.
 export function getThisWeekStart(now: Date = new Date()): Date {
   const day = now.getDay();
