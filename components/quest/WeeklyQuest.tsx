@@ -13,9 +13,7 @@ const DAY_ORDER: Record<string, number> = {
   "월": 0, "화": 1, "수": 2, "목": 3, "금": 4, "토": 5, "일": 6,
 };
 
-// 도트 픽셀 스타일 공통
-const DOT_BORDER = "1.5px solid #1a1a1a";
-const DOT_SHADOW = "1px 1px 0 rgba(0,0,0,0.4)";
+// 도트 픽셀 폰트 (셀 보더는 .is-rounded / .is-rounded-sm 클래스 사용)
 const DOT_FONT = "Galmuri11Bold, monospace";
 
 const WeeklyQuest = ({ hideHeader, hideAddButton }: { hideHeader?: boolean; hideAddButton?: boolean }) => {
@@ -39,7 +37,6 @@ const WeeklyQuest = ({ hideHeader, hideAddButton }: { hideHeader?: boolean; hide
     () => ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()],
     []
   );
-  const todayIdx = DAY_ORDER[todayKo];
 
   // 주간 퀘스트 정렬: 오늘 해당 quest 우선 → 그 다음 가장 빠른 요일 기준
   const sortedWeeklyQuests = useMemo(() => {
