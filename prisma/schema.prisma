@@ -41,6 +41,11 @@ model Character {
   // 판정된 엔딩 코드 (예: "STEEL_WARRIOR", "MAGIC_SWORDSMAN")
   endingCode   String? @map("ending_code")
 
+  // 외형 — constants/appearance.ts 의 ID 와 매칭
+  outfitId   String  @default("fstr_v01") @map("outfit_id")
+  hairId     String  @default("bob1_v01") @map("hair_id")
+  hatId      String? @map("hat_id")
+
   status     Status?
   quests     Quest[]
   userTitles UserTitle[]

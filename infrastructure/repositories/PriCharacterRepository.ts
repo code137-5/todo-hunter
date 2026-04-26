@@ -53,4 +53,14 @@ export class PriCharacterRepository implements ICharacterRepository {
     });
   }
 
+  async updateAppearance(
+    id: number,
+    data: { outfitId?: string; hairId?: string; hatId?: string | null }
+  ): Promise<Character> {
+    return await this.prisma.character.update({
+      where: { id },
+      data,
+    });
+  }
+
 }
