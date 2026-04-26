@@ -4,10 +4,11 @@ import Status from "@/app/play/character/_components/status";
 import "@/app/play/character/_components/character.css";
 import Character from "./_components/character";
 import TitleLoot from "./_components/TitleLoot";
+import CustomizeModal from "./_components/CustomizeModal";
 import { useUserStore } from "@/utils/stores/userStore";
 import { Button } from "@/components/common";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useState } from "react";
 import Image from "next/image";
 import { EXP_TO_LEVEL_UP } from "@/constants/game";
 
@@ -24,6 +25,7 @@ export default function CharacterPage() {
     const router = useRouter();
     const pathname = usePathname();
     const { id, nickname, progress, str, int, emo, fin, liv, level, exp, willpower, maxWillpower, fetchUser } = useUserStore();
+    const [customizeOpen, setCustomizeOpen] = useState(false);
 
     useEffect(() => {
         if (pathname === "/play/character" && id) {
@@ -123,12 +125,20 @@ export default function CharacterPage() {
                     <p className="progress-card-msg">{getProgressMessage(progress)}</p>
                 </div>
 
-                {/* ===== 캐릭터 스프라이트 (풀밭 위) + 전리품 ===== */}
-                <div className="char-sprite-area">
+                {/* ===== 캐릭터 스프라이트 (클릭 시 옷 갈아입기 모달) ===== */}
+                <button
+                    type="button"
+                    onClick={() => setCustomizeOpen(true)}
+                    className="char-sprite-area cursor-pointer"
+                    style={{ background: "transparent", border: "none", padding: 0 }}
+                    aria-label="옷 갈아입기"
+                    title="클릭하여 외형 변경"
+                >
                     <Suspense>
                         <Character />
                     </Suspense>
-                </div>
+                </button>
+
                 <Suspense>
                     <TitleLoot />
                 </Suspense>
@@ -136,6 +146,12 @@ export default function CharacterPage() {
                 {/* 하단 여백 */}
                 <div className="pb-24" />
             </div>
+
+            {/* 외형 커스터마이징 모달 */}
+            <CustomizeModal
+                open={customizeOpen}
+                onClose={() => setCustomizeOpen(false)}
+            />
         </div>
     );
 }
