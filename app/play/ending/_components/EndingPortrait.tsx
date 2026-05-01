@@ -5,9 +5,7 @@ import {
   loadLayers,
   renderLayers,
   type LayerConfig,
-  type SpriteSheet,
 } from "@/utils/sprite/SpriteLayerRenderer";
-import { useUserStore } from "@/utils/stores/userStore";
 import {
   getOutfitSrc,
   getHairSrc,
@@ -19,16 +17,26 @@ import {
 const BASE_PATH = "/images/asprites/char_a_p1";
 const BODY_SRC = `${BASE_PATH}/char_a_p1_0bas_humn_v00.png`;
 
-const CANVAS_SIZE = 250;
+// 5행(row 4) col 0 = 앞모습 idle 첫 프레임 — 대화창에서 정면 응시
+const FRONT_IDLE_FRAME = 32;
 
-const Character = () => {
+interface EndingPortraitProps {
+  outfitId?: string | null;
+  hairId?: string | null;
+  hatId?: string | null;
+  size?: number;
+  /** true 이면 좌우 반전 (npc 가 우측에서 좌측 방향 응시) */
+  flipX?: boolean;
+}
+
+export default function EndingPortrait({
+  outfitId,
+  hairId,
+  hatId,
+  size = 96,
+  flipX = false,
+}: EndingPortraitProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sheetsRef = useRef<SpriteSheet[]>([]);
-
-  // userStore 의 외형 — 변경되면 즉시 재렌더
-  const outfitId = useUserStore((s) => s.outfitId);
-  const hairId = useUserStore((s) => s.hairId);
-  const hatId = useUserStore((s) => s.hatId);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -48,24 +56,27 @@ const Character = () => {
     let cancelled = false;
     loadLayers(layers).then((sheets) => {
       if (cancelled) return;
-      sheetsRef.current = sheets;
-      ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-      renderLayers(ctx, sheets, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      if (flipX) {
+        ctx.translate(size, 0);
+        ctx.scale(-1, 1);
+      }
+      renderLayers(ctx, sheets, FRONT_IDLE_FRAME, size, size);
+      ctx.restore();
     });
 
     return () => {
       cancelled = true;
     };
-  }, [outfitId, hairId, hatId]);
+  }, [outfitId, hairId, hatId, size, flipX]);
 
   return (
     <canvas
       ref={canvasRef}
-      width={CANVAS_SIZE}
-      height={CANVAS_SIZE}
+      width={size}
+      height={size}
       style={{ imageRendering: "pixelated" }}
     />
   );
-};
-
-export default Character;
+}
