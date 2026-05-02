@@ -8,5 +8,6 @@ export interface IUserRepository {
   verifyPassword: (user: User, password: string) => Promise<boolean>;
   create: (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => Promise<User>;
   update: (user: User) => Promise<User>;
+  updatePassword: (userId: number, newPassword: string) => Promise<void>;
   //   delete: (id: string) => Promise<void>;
 }
