@@ -30,4 +30,22 @@ export class RdVerificationRepository implements IVerificationRepository {
         const expirationTime = Date.now() + ttl * 1000;
         return expirationTime;
     }
+
+    async saveResetPasswordCode(email: string, code: string, expiresIn: number = 300): Promise<void> {
+        await redisClient.set(`email-reset:${email}`, code, { ex: expiresIn });
+    }
+
+    async getResetPasswordCode(email: string): Promise<string | null> {
+        return await redisClient.get<string>(`email-reset:${email}`);
+    }
+
+    async deleteResetPasswordCode(email: string): Promise<void> {
+        await redisClient.del(`email-reset:${email}`);
+    }
+
+    async getResetPasswordCodeExpiration(email: string): Promise<number | null> {
+        const ttl = await redisClient.ttl(`email-reset:${email}`);
+        if (ttl === -2 || ttl === -1) return null;
+        return Date.now() + ttl * 1000;
+    }
 }

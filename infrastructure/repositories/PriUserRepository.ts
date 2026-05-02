@@ -75,7 +75,7 @@ export class PriUserRepository implements IUserRepository {
 
   async update(user: User): Promise<User> {
     return await this.prisma.$transaction(async (tx) => {
-      
+
       return tx.user.update({
         where: {
           id: user.id,
@@ -86,6 +86,17 @@ export class PriUserRepository implements IUserRepository {
           updatedAt: new Date(),
         },
       });
+    });
+  }
+
+  async updatePassword(userId: number, newPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(newPassword, 10) as string;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        updatedAt: new Date(),
+      },
     });
   }
 }
