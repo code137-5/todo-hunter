@@ -3,7 +3,6 @@
 import Status from "@/app/play/character/_components/status";
 import "@/app/play/character/_components/character.css";
 import Character from "./_components/character";
-import CustomizeModal from "./_components/CustomizeModal";
 import FeedbackButton from "./_components/FeedbackButton";
 import { useUserStore } from "@/utils/stores/userStore";
 import { Button } from "@/components/common";
@@ -88,7 +87,6 @@ export default function CharacterPage() {
         id, nickname, str, int, emo, fin, liv,
         level, exp, willpower, maxWillpower, fetchUser,
     } = useUserStore();
-    const [customizeOpen, setCustomizeOpen] = useState(false);
     const [selectedTitle, setSelectedTitle] = useState<SelectedTitle | null>(null);
     const [recentCompleted, setRecentCompleted] = useState<RecentCompletedItem[]>([]);
     const [weather, setWeather] = useState<WeatherInfo | null>(null);
@@ -211,18 +209,11 @@ export default function CharacterPage() {
                 <div className="parchment-content">
                     {/* 좌측: 캐릭터 portrait + 이름 + 설명 */}
                     <div className="char-portrait-frame">
-                        <button
-                            type="button"
-                            onClick={() => setCustomizeOpen(true)}
-                            className="char-portrait-bg"
-                            aria-label="외형 편집"
-                            title="클릭하여 외형 변경"
-                            style={{ cursor: "pointer", padding: 0 }}
-                        >
+                        <div className="char-portrait-bg" style={{ padding: 0 }}>
                             <Suspense>
                                 <Character direction={facing} isWalking={isWalking} />
                             </Suspense>
-                        </button>
+                        </div>
                         <div className="char-portrait-arrows">
                             <button
                                 type="button"
@@ -392,12 +383,6 @@ export default function CharacterPage() {
 
             {/* 하단 네비바에 가리지 않도록 spacer */}
             <div className="bottom-nav-spacer" />
-
-            {/* 외형 커스터마이징 모달 */}
-            <CustomizeModal
-                open={customizeOpen}
-                onClose={() => setCustomizeOpen(false)}
-            />
         </div>
     );
 }
