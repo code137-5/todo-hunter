@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { RdAuthenticationRepository } from "@/infrastructure/repositories/RdAuthenticationRepository";
 import { VerifyRefreshTokenUsecase } from "@/application/usecases/auth/VerifyRefreshTokenUsecase";
 import { GenerateAccessTokenUsecase } from "@/application/usecases/auth/GenerateAccessTokenUsecase";
+import { GenerateRefreshTokenUsecase } from "@/application/usecases/auth/GenerateRefreshTokenUsecase";
 import { checkRateLimit, getClientIp } from "@/infrastructure/rate-limiter";
 
 const REFRESH_RATE_LIMIT = { maxRequests: 10, windowSeconds: 60 };
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     const authenticationRepository = new RdAuthenticationRepository();
     const verifyRefreshTokenUsecase = new VerifyRefreshTokenUsecase();
     const generateAccessTokenUsecase = new GenerateAccessTokenUsecase();
+    const generateRefreshTokenUsecase = new GenerateRefreshTokenUsecase(authenticationRepository);
 
     const decodedRefreshToken = await verifyRefreshTokenUsecase.execute(refreshToken);
     if (!decodedRefreshToken) {
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const newAccessToken = await generateAccessTokenUsecase.execute({ id, loginId });
+    const newRefreshToken = await generateRefreshTokenUsecase.execute({ id, loginId });
 
     const response = NextResponse.json({ message: "Token refreshed" }, { status: 200 });
     response.cookies.set("accessToken", newAccessToken, {
@@ -67,6 +70,13 @@ export async function POST(req: NextRequest) {
       sameSite: "lax",
       path: "/",
       maxAge: parseInt(process.env.ACCESS_TOKEN_EXPIRES || "3600", 10),
+    });
+    response.cookies.set("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: parseInt(process.env.REFRESH_TOKEN_EXPIRES || "3600", 10),
     });
 
     return response;
