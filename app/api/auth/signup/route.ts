@@ -6,6 +6,7 @@ import { PriCharacterRepository, PriStatusRepository, PriUserRepository } from "
 import { RdAuthenticationRepository } from "@/infrastructure/repositories/RdAuthenticationRepository";
 import { RdVerificationRepository } from "@/infrastructure/repositories/RdVerificationRepository";
 import { prisma } from "@/lib/prisma";
+import { ValidationError, validateSignupInput } from "@/utils/validation";
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/infrastructure/rate-limiter";
@@ -45,11 +46,15 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const userData: SignUpRequestDTO = await req.json();
-
-    // 필수 필드 체크
-    if (!userData.loginId || !userData.email || !userData.nickname || !userData.password) {
-        return NextResponse.json({ error: "모든 필드를 입력해야 합니다." }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    let userData: SignUpRequestDTO;
+    try {
+        userData = validateSignupInput(body);
+    } catch (error) {
+        if (error instanceof ValidationError) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
     }
 
     const verificationRepository = new RdVerificationRepository();
