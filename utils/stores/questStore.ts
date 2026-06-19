@@ -1,4 +1,5 @@
 import { STATUS } from "@/constants";
+import { requestJson } from "@/utils/apiClient";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useUserStore } from "@/utils/stores/userStore";
@@ -23,6 +24,11 @@ interface Quest {
   days?: string[]; // 주간 퀘스트의 반복 요일 (예: ["월", "수", "금"])
   streak?: number; // 주간 퀘스트의 연속 성공 주 수 (days 모두 만족한 주 카운트)
   subTasks?: SubTask[]; // 서브태스크 목록 (없으면 단일 할일)
+}
+
+interface QuestListResponse {
+  success?: boolean;
+  quests?: Quest[];
 }
 
 interface QuestStore {
@@ -80,21 +86,6 @@ function runAttackAnimation(set: SetState, get: () => QuestStore, damage: number
   }, 600);
 }
 
-type ErrorResponseBody = {
-  error?: string;
-  message?: string;
-};
-
-async function getErrorMessage(response: Response, fallback: string) {
-  const body = await response.json().catch((): ErrorResponseBody => ({}));
-  const serverMessage = typeof body.error === "string" ? body.error : body.message;
-
-  if (response.status === 401) return serverMessage || "로그인이 만료되었습니다. 다시 로그인해 주세요.";
-  if (response.status === 404) return serverMessage || "퀘스트를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.";
-
-  return serverMessage || fallback;
-}
-
 export const useQuestStore = create<QuestStore>((set, get) => ({
   quests: [],
   loading: false,
@@ -141,10 +132,9 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
       const { id } = useUserStore.getState();
       if (!id) throw new Error("로그인이 필요합니다.");
 
-      const response = await fetch(`/api/quest?characterId=${id}`);
-      if (!response.ok) throw new Error("퀘스트 데이터를 불러오지 못했습니다.");
-
-      const json = await response.json();
+      const json = await requestJson<QuestListResponse>(`/api/quest?characterId=${id}`, undefined, {
+        fallbackMessage: "퀘스트 데이터를 불러오지 못했습니다.",
+      });
 
       if (!json.success || !Array.isArray(json.quests)) {
         throw new Error("퀘스트 데이터를 올바르게 받아오지 못했습니다.");
@@ -338,16 +328,14 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
 
       const requestData = { ...quest, characterId: id };
 
-      const response = await fetch("/api/quest", {
+      await requestJson("/api/quest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(requestData),
+      }, {
+        fallbackMessage: "퀘스트 추가 실패",
       });
-
-      if (!response.ok) {
-        throw new Error(await getErrorMessage(response, "퀘스트 추가 실패"));
-      }
 
       await useQuestStore.getState().fetchQuests();
       const questFetchError = useQuestStore.getState().error;
@@ -409,16 +397,14 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
 
   updateQuest: async (questId: number, data: Partial<Quest>) => {
     try {
-      const response = await fetch(`/api/quest/${questId}`, {
+      await requestJson(`/api/quest/${questId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(data),
+      }, {
+        fallbackMessage: "퀘스트 수정 실패",
       });
-
-      if (!response.ok) {
-        throw new Error(await getErrorMessage(response, "퀘스트 수정 실패"));
-      }
 
       set((state) => ({
         quests: state.quests.map((q) =>
