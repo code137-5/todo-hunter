@@ -79,6 +79,11 @@ describe("quest validation", () => {
     expect(() => validateQuestInput({ ...validQuest, days: ["월", "BAD"] })).toThrow("반복 요일");
   });
 
+  it("rejects blank and overlong quest names", () => {
+    expect(() => validateQuestInput({ ...validQuest, name: "   " })).toThrow();
+    expect(() => validateQuestInput({ ...validQuest, name: "a".repeat(21) })).toThrow();
+  });
+
   it("rejects invalid subtasks", () => {
     expect(() => validateQuestInput({ ...validQuest, subTasks: [""] })).toThrow("서브태스크 이름");
     expect(() => validateQuestInput({ ...validQuest, subTasks: Array.from({ length: 11 }, (_, index) => `할일${index}`) })).toThrow("서브태스크는 최대 10개");

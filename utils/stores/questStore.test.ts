@@ -94,4 +94,57 @@ describe("questStore save failure handling", () => {
       "퀘스트를 찾을 수 없습니다."
     );
   });
+
+  it("keeps the local quest input when quest update fails with 500", async () => {
+    const originalQuest = {
+      id: 1,
+      ...questInput,
+      name: "original quest",
+    };
+    useQuestStore.setState({ quests: [originalQuest] });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({ success: false, error: "update failed" }, 500)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(useQuestStore.getState().updateQuest(1, { name: "edited quest" })).rejects.toThrow(
+      "update failed"
+    );
+
+    expect(useQuestStore.getState().quests).toEqual([originalQuest]);
+  });
+
+  it("rolls back optimistic completion when quest completion API fails", async () => {
+    const originalQuest = {
+      id: 1,
+      ...questInput,
+      completed: false,
+    };
+    useQuestStore.setState({ quests: [originalQuest] });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({ success: false, error: "complete failed" }, 500)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useQuestStore.getState().completeQuest(1);
+
+    expect(useQuestStore.getState().quests[0].completed).toBe(false);
+  });
+
+  it("keeps a quest in the list when delete API fails", async () => {
+    const originalQuest = {
+      id: 1,
+      ...questInput,
+      name: "keep quest",
+    };
+    useQuestStore.setState({ quests: [originalQuest] });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({ success: false, error: "delete failed" }, 500)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useQuestStore.getState().deleteQuest(1);
+
+    expect(useQuestStore.getState().quests).toEqual([originalQuest]);
+  });
 });
