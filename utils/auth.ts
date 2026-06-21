@@ -13,20 +13,29 @@ interface UserPayload extends JWTPayload {
   createdAt?: string;
 }
 
-async function isActiveUser(id: number, loginId: string) {
+// 유저가 DB 에 살아있고 loginId 가 일치하는지 확인 (탈퇴/삭제 방어)
+type ActiveUserCheck = (id: number, loginId: string) => Promise<boolean>;
+
+// Node 런타임용: Prisma 로 실제 DB 확인
+const checkActiveUserWithDb: ActiveUserCheck = async (id, loginId) => {
   const user = await prisma.user.findUnique({
     where: { id },
     select: { loginId: true },
   });
 
   return user?.loginId === loginId;
-}
+};
 
-export async function getUserFromCookie(
+// Edge 런타임용: Prisma 미사용. JWT 서명 검증만으로 게이트 통과
+// (실제 유저 존재 여부는 Node 런타임인 API route 에서 재확인됨)
+const skipActiveUserCheck: ActiveUserCheck = async () => true;
+
+async function resolveUserFromCookie(
   req: NextRequest,
-  verifyAccessTokenUsecase = new VerifyAccessTokenUsecase(),
-  verifyRefreshTokenUsecase = new VerifyRefreshTokenUsecase(),
-  generateAccessTokenUsecase = new GenerateAccessTokenUsecase()
+  isActiveUser: ActiveUserCheck,
+  verifyAccessTokenUsecase: VerifyAccessTokenUsecase,
+  verifyRefreshTokenUsecase: VerifyRefreshTokenUsecase,
+  generateAccessTokenUsecase: GenerateAccessTokenUsecase
 ): Promise<{ user: UserPayload | null; response?: NextResponse }> {
   try {
     const accessToken = req.cookies.get("accessToken")?.value;
@@ -92,6 +101,38 @@ export async function getUserFromCookie(
     console.error("Failed to read user from auth cookies", error);
     return { user: null };
   }
+}
+
+// Node 런타임용 (API route 등): DB 로 활성 유저까지 확인
+export async function getUserFromCookie(
+  req: NextRequest,
+  verifyAccessTokenUsecase = new VerifyAccessTokenUsecase(),
+  verifyRefreshTokenUsecase = new VerifyRefreshTokenUsecase(),
+  generateAccessTokenUsecase = new GenerateAccessTokenUsecase()
+): Promise<{ user: UserPayload | null; response?: NextResponse }> {
+  return resolveUserFromCookie(
+    req,
+    checkActiveUserWithDb,
+    verifyAccessTokenUsecase,
+    verifyRefreshTokenUsecase,
+    generateAccessTokenUsecase
+  );
+}
+
+// Edge 런타임용 (middleware): Prisma 미사용. JWT 검증 + Redis refresh 만 수행
+export async function getUserFromCookieEdge(
+  req: NextRequest,
+  verifyAccessTokenUsecase = new VerifyAccessTokenUsecase(),
+  verifyRefreshTokenUsecase = new VerifyRefreshTokenUsecase(),
+  generateAccessTokenUsecase = new GenerateAccessTokenUsecase()
+): Promise<{ user: UserPayload | null; response?: NextResponse }> {
+  return resolveUserFromCookie(
+    req,
+    skipActiveUserCheck,
+    verifyAccessTokenUsecase,
+    verifyRefreshTokenUsecase,
+    generateAccessTokenUsecase
+  );
 }
 
 export async function getUserFromRequest(req: NextRequest) {
