@@ -2,6 +2,7 @@
 
 import { LoginError } from "@/application/usecases/auth/errors/LoginError";
 import { Button, Input } from "@/components/common";
+import { submitEmailSignup } from "@/utils/signupSubmit";
 import { useUserStore } from "@/utils/stores/userStore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
@@ -394,31 +395,22 @@ const SignUp = () => {
     setSignupErrorMessage("");
     setIsSigningUp(true);
 
-    try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loginId, email, nickname, password }),
-        credentials: "include", // 쿠키 포함
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        const message = getSignupErrorMessage(response.status, data?.error);
-        setSignupErrorMessage(message);
-        alert(message);
-        return;
+    const signupResult = await submitEmailSignup(
+      { loginId, email, nickname, password },
+      {
+        getErrorMessage: getSignupErrorMessage,
+        onSuccess: () => undefined,
+        onFailure: (message) => {
+          setSignupErrorMessage(message);
+          alert(message);
+        },
+        onNetworkError: (error) => {
+          console.error("Error signing up:", error);
+        },
       }
-      // const data = await response.json(); // 회원가입 정보 클라이언트 측에 로그로 표시
-      // console.log(data); // 회원가입 정보 클라이언트 측에 로그로 표시
-    } catch (error) {
-      console.error("Error signing up:", error);
-      const message = "네트워크 오류로 회원가입에 실패했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
-      setSignupErrorMessage(message);
-      alert(message);
-      return;
-    } finally {
-      setIsSigningUp(false);
-    }
+    );
+    setIsSigningUp(false);
+    if (!signupResult.ok) return;
 
     alert("가입이 완료되었습니다!");
 
